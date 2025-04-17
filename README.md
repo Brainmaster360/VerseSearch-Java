@@ -14,14 +14,6 @@ VerseSearch-Java is a modern desktop application built with Java Swing that allo
 
 ---
 
-## 🖥️ Screenshots
-> _Include these in your GitHub repo_
-- `main_gui.png`: Full layout in light mode.
-- `dark_mode.png`: Dark theme preview.
-- `history_view.png`: Example of search history output.
-
----
-
 ## 🚀 Getting Started
 
 ### 📦 Requirements
@@ -63,8 +55,10 @@ VerseSearch-Java/
 ├── VerseSearchApp.java
 ├── json-20210307.jar
 ├── verse_search_history.txt (generated)
-└── README.md
+├── README.md
 ```
+
+> You can optionally include screenshots later in a `screenshots/` folder.
 
 ---
 
