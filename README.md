@@ -63,11 +63,7 @@ VerseSearch-Java/
 ├── VerseSearchApp.java
 ├── json-20210307.jar
 ├── verse_search_history.txt (generated)
-├── README.md
-└── screenshots/
-    ├── main_gui.png
-    ├── dark_mode.png
-    └── history_view.png
+└── README.md
 ```
 
 ---
