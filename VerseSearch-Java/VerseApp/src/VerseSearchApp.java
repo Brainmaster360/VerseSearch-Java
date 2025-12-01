@@ -10,6 +10,7 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+
 public class VerseSearchApp extends JFrame {
 
     private JTextField verseInput;
@@ -17,7 +18,16 @@ public class VerseSearchApp extends JFrame {
     private JButton fetchButton, clearButton, historyButton, saveHistoryButton, toggleThemeButton;
     private List<String> searchHistory = new ArrayList<>();
     private boolean isDarkMode = false;
+    
+    //added for favorites button functionality
+    private JButton addFavoriteButton, viewFavoritesButton;
 
+    //added for translation functionality
+    private JComboBox<TranslationOption> translationBox;
+    
+    //added to store favorite verses list in memory
+    private List<String> favoriteVerses = new ArrayList<>();
+    
     public VerseSearchApp() {
         setTitle("VerseSearch - Bible API Viewer");
         setMinimumSize(new Dimension(800, 550));
@@ -29,6 +39,27 @@ public class VerseSearchApp extends JFrame {
         pack();
     }
 
+    //added - Class to store translation ID and display name
+    private static class TranslationOption {
+        private final String id;
+        private final String displayName;
+
+        public TranslationOption(String id, String displayName) {
+            this.id = id;
+            this.displayName = displayName;
+        }
+
+        public String getId() {
+            return id;
+        }
+
+        @Override
+        public String toString() {
+            return displayName;
+        }
+    }
+
+    
     private void initializeUI() {
         JPanel container = new JPanel(new BorderLayout(10, 10));
         container.setBorder(new EmptyBorder(15, 15, 15, 15));
@@ -52,12 +83,21 @@ public class VerseSearchApp extends JFrame {
         gbc.gridx = 1;
         gbc.gridwidth = 4;
         topPanel.add(verseInput, gbc);
+        
+        //added - will allow user to press enter to search instead of always having to click the search button
+        verseInput.addActionListener(e -> fetchVerse());
+
 
         fetchButton = createStyledButton("Search", new Color(33, 150, 243));
         clearButton = createStyledButton("Clear", new Color(244, 67, 54));
         historyButton = createStyledButton("View History", new Color(100, 149, 237));
         saveHistoryButton = createStyledButton("Save History", new Color(100, 149, 237));
         toggleThemeButton = createStyledButton("Toggle Theme", new Color(120, 120, 120));
+        
+        //added - create favorites buttons
+        addFavoriteButton = createStyledButton("Add to Favorites", new Color(76, 175, 80));
+        viewFavoritesButton = createStyledButton("View Favorites", new Color(60, 179, 113));
+
 
         gbc.gridy = 1;
         gbc.gridwidth = 1;
@@ -66,6 +106,40 @@ public class VerseSearchApp extends JFrame {
         gbc.gridx = 2; topPanel.add(historyButton, gbc);
         gbc.gridx = 3; topPanel.add(saveHistoryButton, gbc);
         gbc.gridx = 4; topPanel.add(toggleThemeButton, gbc);
+        
+        
+        //added - for selecting the translation 
+        gbc.gridy = 2;
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        JLabel translationLabel = new JLabel("Translation:");
+        translationLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        topPanel.add(translationLabel, gbc);
+
+        //translation options
+        TranslationOption[] translations = {
+                new TranslationOption("web", "WEB - World English Bible (default)"),
+                new TranslationOption("kjv", "KJV - King James Version"),
+                new TranslationOption("asv", "ASV - American Standard Version"),
+                new TranslationOption("bbe", "BBE - Bible in Basic English")
+        };
+
+        gbc.gridx = 1;
+        gbc.gridwidth = 4;
+        translationBox = new JComboBox<>(translations);
+        translationBox.setSelectedIndex(0);
+        translationBox.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        topPanel.add(translationBox, gbc);
+        
+        //added - for favorites button
+        gbc.gridy = 3;
+        gbc.gridwidth = 1;
+        gbc.gridx = 0;
+        topPanel.add(addFavoriteButton, gbc);
+
+        gbc.gridx = 1;
+        topPanel.add(viewFavoritesButton, gbc);
+        
 
         container.add(topPanel, BorderLayout.NORTH);
 
@@ -87,6 +161,11 @@ public class VerseSearchApp extends JFrame {
         historyButton.addActionListener(e -> viewHistory());
         saveHistoryButton.addActionListener(e -> saveHistoryToFile());
         toggleThemeButton.addActionListener(e -> toggleTheme(container));
+        
+        //added - for favorites button actions
+        addFavoriteButton.addActionListener(e -> addCurrentToFavorites());
+        viewFavoritesButton.addActionListener(e -> viewFavorites());
+
     }
 
     private JButton createStyledButton(String text, Color bg) {
@@ -114,6 +193,17 @@ public class VerseSearchApp extends JFrame {
         outputArea.setForeground(foreground);
         verseInput.setBackground(background);
         verseInput.setForeground(foreground);
+        
+        //added - for the translation dropdown
+        if (translationBox != null) {
+            if (isDarkMode) {
+                translationBox.setBackground(new Color(60, 60, 60));
+                translationBox.setForeground(Color.WHITE);
+            } else {
+                translationBox.setBackground(Color.WHITE);
+                translationBox.setForeground(Color.BLACK);
+            }
+        }
     }
 
     private void fetchVerse() {
@@ -123,10 +213,15 @@ public class VerseSearchApp extends JFrame {
             return;
         }
 
+         //added - for selected translation ID
+        TranslationOption selected = (TranslationOption) translationBox.getSelectedItem();
+        String translationId = (selected != null) ? selected.getId() : "web";
+
         try {
-            URL url = new URL("https://bible-api.com/" + reference);
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
+        String apiUrl = "https://bible-api.com/" + reference + "?translation=" + translationId;
+        URL url = new URL(apiUrl);
+        HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+        conn.setRequestMethod("GET");
 
             int responseCode = conn.getResponseCode();
             if (responseCode == HttpURLConnection.HTTP_OK) {
@@ -141,7 +236,9 @@ public class VerseSearchApp extends JFrame {
 
                 String result = parseVerseResponse(response.toString());
                 outputArea.setText(result);
-                searchHistory.add(reference.replace("+", " ") + ":\n" + result);
+                //modified here to add translation ID
+                searchHistory.add(reference.replace("+", " ") + " [" + translationId.toUpperCase() + "]:\n" + result);
+
             } else {
                 outputArea.setText("Verse not found or API error.\nResponse Code: " + responseCode);
             }
@@ -209,8 +306,41 @@ public class VerseSearchApp extends JFrame {
             outputArea.setText("Error saving history: " + e.getMessage());
         }
     }
+    
+    //added- method to add current verse to favoties list
+    private void addCurrentToFavorites() {
+        String text = outputArea.getText().trim();
+        if (text.isEmpty() || text.startsWith("Please enter a verse reference.") || text.startsWith("Error") || text.startsWith("Verse not found") || text.startsWith("No search history")) {
+            JOptionPane.showMessageDialog(this,
+                    "There is no verse result to add to favorites.",
+                    "No Verse",
+                    JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        favoriteVerses.add(text);
+        JOptionPane.showMessageDialog(this,
+                "Current verse(s) added to favorites.",
+                "Added to Favorites",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    //added - to show all the favorite verses in the favorites list
+    private void viewFavorites() {
+        if (favoriteVerses.isEmpty()) {
+            outputArea.setText("No favorite verses have been added yet.");
+        } else {
+            StringBuilder sb = new StringBuilder("Favorite Verses:\n\n");
+            for (String fav : favoriteVerses) {
+                sb.append(fav).append("\n-----------------------------\n");
+            }  
+            outputArea.setText(sb.toString());
+        }
+    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new VerseSearchApp().setVisible(true));
     }
 }
+
+Add translation selector and favorites
